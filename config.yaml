@@ -1,0 +1,44 @@
+ocr:
+  primary_engine: paddleocr
+  fallback_engine: easyocr
+  confidence_threshold: 0.6
+  languages: [ko, en]
+
+crawler:
+  browser: playwright
+  page_timeout: 30
+  scroll_pause: 2.0
+  max_scrolls: 50
+
+panel_filter:
+  min_width: 300
+  min_height: 400
+  min_aspect_ratio: 0.5
+  max_aspect_ratio: 3.0
+  excluded_keywords: [avatar, emoji, icon, banner, ad]
+
+smart_split:
+  max_subpanels: 100
+  min_margin_from_text: 50
+  min_whitespace_height: 20
+
+llm:
+  model: claude-3-5-sonnet-20241022
+  temperature: 0.2
+  max_tokens: 1024
+
+translation:
+  target_language: en
+  source_language: ko
+  context_window_size: 3
+
+storage:
+  backend: csv
+
+fonts:
+  default: ./fonts/NanumGothic.ttf
+  size_multiplier: 0.8
+
+debug:
+  save_artifacts: true
+  debug_mode: false
