@@ -41,7 +41,7 @@ class SmartSplitConfig(BaseModel):
 
 class LLMConfig(BaseModel):
     """LLM API configuration."""
-    model: str = "claude-3-5-sonnet-20241022"
+    model: str = "claude-sonnet-4-5-20250929"
     temperature: float = 0.2
     max_tokens: int = 1024
 

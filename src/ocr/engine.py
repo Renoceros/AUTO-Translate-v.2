@@ -143,7 +143,7 @@ class OCREngine:
                 import easyocr
 
                 logger.info("Initializing EasyOCR...")
-                self._easy_ocr = easyocr.Reader(['ko', 'en'], gpu=False)
+                self._easy_ocr = easyocr.Reader(['ko', 'en'], gpu=True)
                 logger.info("EasyOCR initialized")
 
             except Exception as e:
