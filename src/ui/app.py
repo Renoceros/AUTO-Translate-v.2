@@ -11,6 +11,7 @@ from src.ui.ui_progress import render_progress_section, update_progress_display
 from src.ui.ui_viewer import render_gallery, render_image_comparison
 from src.ui.ui_debug import render_debug_section
 from src.export import create_zip_package_in_memory
+from src.logging_config import setup_logging
 
 
 def main():
@@ -23,6 +24,16 @@ def main():
 
     st.title("AUTO-Translate v.2")
     st.markdown("*Automated Manhwa Translation System*")
+
+    # Setup logging (once per session)
+    if 'logging_initialized' not in st.session_state:
+        log_file = setup_logging(
+            log_dir=Path("./logs"),
+            console_level="INFO",
+            file_level="DEBUG"
+        )
+        st.session_state.logging_initialized = True
+        st.session_state.log_file = log_file
 
     # Initialize session state
     if 'pipeline_running' not in st.session_state:
@@ -57,6 +68,36 @@ def main():
 
         **Academic Use Only**
         """)
+
+        st.divider()
+
+        # Log file viewer
+        st.header("Logs")
+        if 'log_file' in st.session_state and st.session_state.log_file.exists():
+            st.caption(f"Current: {st.session_state.log_file.name}")
+
+            if st.button("📄 View Latest Logs"):
+                with open(st.session_state.log_file, 'r', encoding='utf-8') as f:
+                    # Read last 100 lines
+                    lines = f.readlines()
+                    recent_lines = lines[-100:] if len(lines) > 100 else lines
+                    st.text_area(
+                        "Log Output",
+                        value=''.join(recent_lines),
+                        height=400,
+                        key='log_viewer'
+                    )
+
+            if st.button("📂 Open Logs Folder"):
+                import subprocess
+                import platform
+                log_dir = st.session_state.log_file.parent
+                if platform.system() == 'Windows':
+                    subprocess.Popen(['explorer', str(log_dir)])
+                elif platform.system() == 'Darwin':
+                    subprocess.Popen(['open', str(log_dir)])
+                else:
+                    subprocess.Popen(['xdg-open', str(log_dir)])
 
         st.divider()
 

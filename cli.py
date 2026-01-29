@@ -5,6 +5,7 @@ from pathlib import Path
 
 from src.config import Config
 from src.pipeline import Pipeline
+from src.logging_config import setup_logging, enable_debug_logging
 
 
 def main():
@@ -59,6 +60,17 @@ def main():
     # Override debug mode if specified
     if args.debug:
         config.debug.debug_mode = True
+
+    # Setup logging system
+    log_file = setup_logging(
+        log_dir=Path("./logs"),
+        console_level="INFO",
+        file_level="DEBUG" if args.debug else "INFO"
+    )
+    print(f"Logs: {log_file}")
+
+    if args.debug:
+        enable_debug_logging()
 
     # Handle ZIP extraction
     html_path = None

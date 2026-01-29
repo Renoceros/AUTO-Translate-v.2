@@ -37,7 +37,7 @@ def render_image_comparison(
 
 def render_gallery(image_paths: List[Path]):
     """
-    Render gallery of final translated images.
+    Render gallery of final translated images in single column.
 
     Args:
         image_paths: List of image paths
@@ -48,17 +48,38 @@ def render_gallery(image_paths: List[Path]):
         st.info("No images to display")
         return
 
-    # Display images in grid
-    cols_per_row = 2
-    for i in range(0, len(image_paths), cols_per_row):
-        cols = st.columns(cols_per_row)
+    # Display images in single column with no gaps
+    st.markdown("""
+    <style>
+    /* Remove gaps between images */
+    .stImage {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+    }
+    /* Style for page numbers */
+    .page-number {
+        display: inline-block;
+        width: 60px;
+        font-size: 14px;
+        font-weight: bold;
+        color: #666;
+        text-align: right;
+        padding-right: 10px;
+        vertical-align: top;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-        for j, col in enumerate(cols):
-            idx = i + j
-            if idx < len(image_paths):
-                with col:
-                    st.image(str(image_paths[idx]), use_container_width=True)
-                    st.caption(f"Page {idx + 1}")
+    # Display each image with number on the left
+    for idx, image_path in enumerate(image_paths):
+        # Create two columns: narrow one for number, wide one for image
+        col1, col2 = st.columns([0.08, 0.92], gap="small")
+
+        with col1:
+            st.markdown(f'<div class="page-number">#{idx + 1}</div>', unsafe_allow_html=True)
+
+        with col2:
+            st.image(str(image_path), use_container_width=True)
 
 
 def render_single_image_viewer(image_path: Path):

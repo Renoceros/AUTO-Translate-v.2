@@ -177,6 +177,7 @@ class OCREngine:
 
             try:
                 # Run OCR with PaddleX
+                logger.debug(f"Running PaddleX on temp file: {tmp_path}")
                 output = self._paddle_ocr.predict(
                     input=tmp_path,
                     use_doc_orientation_classify=False,
@@ -184,26 +185,54 @@ class OCREngine:
                     use_textline_orientation=False
                 )
 
+                # Debug: Log output type and content
+                logger.debug(f"PaddleX output type: {type(output)}")
+                logger.debug(f"PaddleX output is None: {output is None}")
+                logger.debug(f"PaddleX output is empty: {not output if output is not None else 'N/A'}")
+
                 if not output:
-                    logger.warning("PaddleX OCR returned no results")
+                    logger.warning("PaddleX OCR returned no results (empty output)")
                     return []
 
                 # Parse PaddleX result format (based on official docs)
                 # Temp file must exist during iteration as predict() returns lazy generator
                 boxes = []
+                total_detections = 0
+                results_processed = 0
+
                 for result in output:
+                    results_processed += 1
+                    logger.debug(f"Processing result #{results_processed}, type: {type(result)}")
+
+                    # Debug: Log result attributes
+                    if hasattr(result, '__dict__'):
+                        logger.debug(f"Result attributes: {list(result.__dict__.keys())}")
+
                     # According to docs: dt_polys, rec_texts, rec_scores
                     if hasattr(result, 'dt_polys') and hasattr(result, 'rec_texts') and hasattr(result, 'rec_scores'):
+                        num_detections = len(result.dt_polys) if result.dt_polys else 0
+                        total_detections += num_detections
+                        logger.debug(f"Result has {num_detections} text detections")
+
+                        if not result.dt_polys:
+                            logger.debug("dt_polys is empty")
+                            continue
+
                         # Iterate through detected text regions
-                        for bbox, text, score in zip(result.dt_polys, result.rec_texts, result.rec_scores):
+                        for idx, (bbox, text, score) in enumerate(zip(result.dt_polys, result.rec_texts, result.rec_scores)):
                             # bbox is numpy array of shape (4, 2) with dtype int16
                             # Convert to list of [x, y] points
                             polygon = [[int(p[0]), int(p[1])] for p in bbox]
-
                             confidence = float(score)
 
+                            logger.debug(f"Detection {idx}: text='{text}', score={confidence:.3f}, polygon={polygon[:2]}...")
+
                             # Clean text
+                            text_before = text
                             text = clean_ocr_text(text)
+
+                            if text != text_before:
+                                logger.debug(f"Text cleaned: '{text_before}' -> '{text}'")
 
                             if text:
                                 # Create OCRBox with polygon (xywh computed automatically)
@@ -212,8 +241,12 @@ class OCREngine:
                                     confidence=confidence,
                                     polygon=polygon
                                 ))
+                            else:
+                                logger.debug(f"Text filtered out after cleaning: '{text_before}'")
+                    else:
+                        logger.warning(f"Result missing required attributes. Has: {dir(result)}")
 
-                logger.info(f"PaddleX OCR detected {len(boxes)} text boxes")
+                logger.info(f"PaddleX OCR: processed {results_processed} results, found {total_detections} detections, kept {len(boxes)} text boxes")
                 return boxes
 
             finally:
