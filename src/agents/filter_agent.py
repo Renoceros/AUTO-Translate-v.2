@@ -34,6 +34,10 @@ Examples:
 - "쿠르릉" → DROP (sfx)
 - "© 2023 Manhwa Site" → DROP (watermark)
 - "다음 화에 계속!" → DROP (site UI)
+- "가장 빠른 웹툰제공사이트
+   웹툰왕국뉴토끼469
+   NEWTOKI469.COM" → DROP (watermark)
+- "ㅋㅋㅋㅋ" → DROP (sfx)
 
 Input:
 {
