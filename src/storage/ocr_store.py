@@ -1,5 +1,6 @@
 """OCR metadata storage (CSV/SQLite)."""
 import csv
+import json
 import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -32,12 +33,17 @@ class OCRStore:
         with open(self.csv_path, 'w', newline='', encoding='utf-8') as f:
             fieldnames = [
                 'image_id', 'box_id', 'x', 'y', 'w', 'h',
-                'text', 'confidence', 'panel_index'
+                'text', 'confidence', 'panel_index', 'polygon'
             ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
 
             for i, box in enumerate(boxes):
+                # Serialize polygon as JSON string if present
+                polygon_str = ""
+                if 'polygon' in box and box['polygon']:
+                    polygon_str = json.dumps(box['polygon'])
+
                 writer.writerow({
                     'image_id': image_id,
                     'box_id': i,
@@ -47,7 +53,8 @@ class OCRStore:
                     'h': box['h'],
                     'text': box['text'],
                     'confidence': box['confidence'],
-                    'panel_index': box.get('panel_index', 0)
+                    'panel_index': box.get('panel_index', 0),
+                    'polygon': polygon_str
                 })
 
         logger.info(f"Saved {len(boxes)} OCR boxes to {self.csv_path}")
@@ -86,6 +93,15 @@ class OCRStore:
                     'confidence': float(row['confidence']),
                     'panel_index': int(row['panel_index'])
                 }
+
+                # Deserialize polygon if present
+                if 'polygon' in row and row['polygon']:
+                    try:
+                        box['polygon'] = json.loads(row['polygon'])
+                    except (json.JSONDecodeError, ValueError):
+                        # If polygon parsing fails, ignore it (backward compatibility)
+                        pass
+
                 boxes.append(box)
 
         logger.info(f"Loaded {len(boxes)} OCR boxes from {self.csv_path}")

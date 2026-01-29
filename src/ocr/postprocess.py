@@ -107,7 +107,7 @@ def merge_box_group(boxes: list) -> dict:
     if len(boxes) == 1:
         return boxes[0]
 
-    # Calculate bounding box
+    # Calculate bounding box from all boxes (whether they have polygons or not)
     min_x = min(b["x"] for b in boxes)
     min_y = min(b["y"] for b in boxes)
     max_x = max(b["x"] + b["w"] for b in boxes)
@@ -119,11 +119,20 @@ def merge_box_group(boxes: list) -> dict:
     # Average confidence
     avg_confidence = sum(b.get("confidence", 0) for b in boxes) / len(boxes)
 
+    # Create merged box with rectangular polygon
+    merged_polygon = [
+        [min_x, min_y],
+        [max_x, min_y],
+        [max_x, max_y],
+        [min_x, max_y]
+    ]
+
     return {
         "x": min_x,
         "y": min_y,
         "w": max_x - min_x,
         "h": max_y - min_y,
         "text": merged_text,
-        "confidence": avg_confidence
+        "confidence": avg_confidence,
+        "polygon": merged_polygon
     }

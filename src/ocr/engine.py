@@ -16,20 +16,77 @@ logger = logging.getLogger(__name__)
 
 
 class OCRBox:
-    """OCR result box."""
+    """OCR result box with polygon support."""
 
-    def __init__(self, x: int, y: int, w: int, h: int, text: str, confidence: float, panel_index: int = 0):
-        self.x = x
-        self.y = y
-        self.w = w
-        self.h = h
+    def __init__(
+        self,
+        x: int = None,
+        y: int = None,
+        w: int = None,
+        h: int = None,
+        text: str = "",
+        confidence: float = 0.0,
+        panel_index: int = 0,
+        polygon: List[List[int]] = None
+    ):
+        """
+        Initialize OCR box.
+
+        Args:
+            x, y, w, h: Bounding box (optional if polygon provided)
+            text: OCR text
+            confidence: Detection confidence
+            panel_index: Panel index
+            polygon: List of [x, y] points (4 points for quadrilateral)
+        """
         self.text = text
         self.confidence = confidence
         self.panel_index = panel_index
+        self._polygon = polygon
+
+        # If polygon provided, compute bounding box from it
+        if polygon is not None and len(polygon) >= 4:
+            x_coords = [p[0] for p in polygon]
+            y_coords = [p[1] for p in polygon]
+            self._x = int(min(x_coords))
+            self._y = int(min(y_coords))
+            self._w = int(max(x_coords) - self._x)
+            self._h = int(max(y_coords) - self._y)
+        else:
+            # Use provided xywh
+            self._x = x if x is not None else 0
+            self._y = y if y is not None else 0
+            self._w = w if w is not None else 0
+            self._h = h if h is not None else 0
+
+    @property
+    def x(self) -> int:
+        """Get x coordinate."""
+        return self._x
+
+    @property
+    def y(self) -> int:
+        """Get y coordinate."""
+        return self._y
+
+    @property
+    def w(self) -> int:
+        """Get width."""
+        return self._w
+
+    @property
+    def h(self) -> int:
+        """Get height."""
+        return self._h
+
+    @property
+    def polygon(self) -> Optional[List[List[int]]]:
+        """Get polygon points (if available)."""
+        return self._polygon
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
-        return {
+        result = {
             "x": self.x,
             "y": self.y,
             "w": self.w,
@@ -38,18 +95,22 @@ class OCRBox:
             "confidence": self.confidence,
             "panel_index": self.panel_index
         }
+        if self._polygon is not None:
+            result["polygon"] = self._polygon
+        return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "OCRBox":
         """Create from dictionary."""
         return cls(
-            x=data["x"],
-            y=data["y"],
-            w=data["w"],
-            h=data["h"],
+            x=data.get("x"),
+            y=data.get("y"),
+            w=data.get("w"),
+            h=data.get("h"),
             text=data["text"],
             confidence=data["confidence"],
-            panel_index=data.get("panel_index", 0)
+            panel_index=data.get("panel_index", 0),
+            polygon=data.get("polygon")
         )
 
 
@@ -62,22 +123,17 @@ class OCREngine:
         self._easy_ocr = None
 
     def _init_paddle_ocr(self):
-        """Initialize PaddleOCR."""
+        """Initialize PaddleX OCR pipeline."""
         if self._paddle_ocr is None:
             try:
-                from paddleocr import PaddleOCR
+                from paddlex import create_pipeline
 
-                logger.info("Initializing PaddleOCR...")
-                self._paddle_ocr = PaddleOCR(
-                    use_angle_cls=True,
-                    lang='korean',
-                    use_gpu=False,
-                    show_log=False
-                )
-                logger.info("PaddleOCR initialized")
+                logger.info("Initializing PaddleX OCR pipeline...")
+                self._paddle_ocr = create_pipeline(pipeline="OCR")
+                logger.info("PaddleX OCR pipeline initialized")
 
             except Exception as e:
-                logger.error(f"Failed to initialize PaddleOCR: {e}")
+                logger.error(f"Failed to initialize PaddleX: {e}")
                 raise
 
     def _init_easy_ocr(self):
@@ -96,7 +152,7 @@ class OCREngine:
 
     def run_paddle_ocr(self, image: np.ndarray) -> List[OCRBox]:
         """
-        Run PaddleOCR on image.
+        Run PaddleX OCR on image.
 
         Args:
             image: Image as numpy array
@@ -110,46 +166,64 @@ class OCREngine:
             # Preprocess image
             preprocessed = preprocess_for_ocr(image)
 
-            # Run OCR
-            result = self._paddle_ocr.ocr(preprocessed, cls=True)
+            # Save to temp file (PaddleX requires file path)
+            import tempfile
+            import os
+            from PIL import Image as PILImage
 
-            if not result or not result[0]:
-                logger.warning("PaddleOCR returned no results")
-                return []
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                tmp_path = tmp.name
+                PILImage.fromarray(preprocessed).save(tmp_path)
 
-            # Parse results
-            boxes = []
-            for line in result[0]:
-                if len(line) < 2:
-                    continue
+            try:
+                # Run OCR with PaddleX
+                output = self._paddle_ocr.predict(
+                    input=tmp_path,
+                    use_doc_orientation_classify=False,
+                    use_doc_unwarping=False,
+                    use_textline_orientation=False
+                )
 
-                # Extract bounding box
-                bbox = line[0]  # [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
-                text_info = line[1]  # (text, confidence)
+                if not output:
+                    logger.warning("PaddleX OCR returned no results")
+                    return []
 
-                # Calculate box coordinates
-                x_coords = [p[0] for p in bbox]
-                y_coords = [p[1] for p in bbox]
+                # Parse PaddleX result format (based on official docs)
+                # Temp file must exist during iteration as predict() returns lazy generator
+                boxes = []
+                for result in output:
+                    # According to docs: dt_polys, rec_texts, rec_scores
+                    if hasattr(result, 'dt_polys') and hasattr(result, 'rec_texts') and hasattr(result, 'rec_scores'):
+                        # Iterate through detected text regions
+                        for bbox, text, score in zip(result.dt_polys, result.rec_texts, result.rec_scores):
+                            # bbox is numpy array of shape (4, 2) with dtype int16
+                            # Convert to list of [x, y] points
+                            polygon = [[int(p[0]), int(p[1])] for p in bbox]
 
-                x = int(min(x_coords))
-                y = int(min(y_coords))
-                w = int(max(x_coords) - x)
-                h = int(max(y_coords) - y)
+                            confidence = float(score)
 
-                text = text_info[0]
-                confidence = float(text_info[1])
+                            # Clean text
+                            text = clean_ocr_text(text)
 
-                # Clean text
-                text = clean_ocr_text(text)
+                            if text:
+                                # Create OCRBox with polygon (xywh computed automatically)
+                                boxes.append(OCRBox(
+                                    text=text,
+                                    confidence=confidence,
+                                    polygon=polygon
+                                ))
 
-                if text:
-                    boxes.append(OCRBox(x, y, w, h, text, confidence))
+                logger.info(f"PaddleX OCR detected {len(boxes)} text boxes")
+                return boxes
 
-            logger.info(f"PaddleOCR detected {len(boxes)} text boxes")
-            return boxes
+            finally:
+                # Clean up temp file AFTER consuming all results from generator
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
 
         except Exception as e:
-            logger.error(f"PaddleOCR failed: {e}")
+            logger.error(f"PaddleX OCR failed: {e}")
+            logger.exception(e)  # Log full traceback for debugging
             return []
 
     def run_easy_ocr(self, image: np.ndarray) -> List[OCRBox]:
@@ -177,19 +251,18 @@ class OCREngine:
                 text = detection[1]
                 confidence = float(detection[2])
 
-                # Calculate box
-                x_coords = [p[0] for p in bbox]
-                y_coords = [p[1] for p in bbox]
-
-                x = int(min(x_coords))
-                y = int(min(y_coords))
-                w = int(max(x_coords) - x)
-                h = int(max(y_coords) - y)
+                # Convert to list of [x, y] points (polygon)
+                polygon = [[int(p[0]), int(p[1])] for p in bbox]
 
                 text = clean_ocr_text(text)
 
                 if text:
-                    boxes.append(OCRBox(x, y, w, h, text, confidence))
+                    # Create OCRBox with polygon (xywh computed automatically)
+                    boxes.append(OCRBox(
+                        text=text,
+                        confidence=confidence,
+                        polygon=polygon
+                    ))
 
             logger.info(f"EasyOCR detected {len(boxes)} text boxes")
             return boxes

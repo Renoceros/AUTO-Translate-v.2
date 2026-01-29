@@ -17,7 +17,7 @@ def build_mask_for_panel(
 
     Args:
         image_shape: (height, width) of image
-        boxes: List of OCR boxes to mask
+        boxes: List of OCR boxes to mask (supports both polygon and xywh)
         dilation: Pixels to dilate mask (to ensure full coverage)
 
     Returns:
@@ -30,19 +30,33 @@ def build_mask_for_panel(
 
     # Draw boxes
     for box in boxes:
-        x = int(box['x'])
-        y = int(box['y'])
-        w = int(box['w'])
-        h = int(box['h'])
+        # Prefer polygon if available (more accurate)
+        if 'polygon' in box and box['polygon'] and len(box['polygon']) >= 3:
+            # Use polygon for more accurate mask
+            polygon = box['polygon']
+            pts = np.array(polygon, dtype=np.int32)
 
-        # Ensure coordinates are valid
-        x = max(0, x)
-        y = max(0, y)
-        w = min(w, width - x)
-        h = min(h, height - y)
+            # Ensure coordinates are valid
+            pts[:, 0] = np.clip(pts[:, 0], 0, width - 1)
+            pts[:, 1] = np.clip(pts[:, 1], 0, height - 1)
 
-        # Fill rectangle
-        cv2.rectangle(mask, (x, y), (x + w, y + h), 255, -1)
+            # Fill polygon
+            cv2.fillPoly(mask, [pts], 255)
+        else:
+            # Fallback to rectangle
+            x = int(box['x'])
+            y = int(box['y'])
+            w = int(box['w'])
+            h = int(box['h'])
+
+            # Ensure coordinates are valid
+            x = max(0, x)
+            y = max(0, y)
+            w = min(w, width - x)
+            h = min(h, height - y)
+
+            # Fill rectangle
+            cv2.rectangle(mask, (x, y), (x + w, y + h), 255, -1)
 
     # Dilate mask slightly
     if dilation > 0:
