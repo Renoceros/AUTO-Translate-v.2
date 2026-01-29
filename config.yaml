@@ -27,6 +27,11 @@ llm:
   temperature: 0.2
   max_tokens: 1024
 
+agents:
+  batch_size: 40
+  max_tokens: 4096
+  use_batch_mode: true
+
 translation:
   target_language: en
   source_language: ko

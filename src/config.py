@@ -46,6 +46,13 @@ class LLMConfig(BaseModel):
     max_tokens: int = 1024
 
 
+class AgentsConfig(BaseModel):
+    """Agent processing configuration."""
+    batch_size: int = 40
+    max_tokens: int = 4096
+    use_batch_mode: bool = True
+
+
 class TranslationConfig(BaseModel):
     """Translation settings."""
     target_language: str = "en"
@@ -84,6 +91,7 @@ class Config(BaseModel):
     panel_filter: PanelFilterConfig = Field(default_factory=PanelFilterConfig)
     smart_split: SmartSplitConfig = Field(default_factory=SmartSplitConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
+    agents: AgentsConfig = Field(default_factory=AgentsConfig)
     translation: TranslationConfig = Field(default_factory=TranslationConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     fonts: FontConfig = Field(default_factory=FontConfig)
