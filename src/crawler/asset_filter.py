@@ -33,6 +33,7 @@ async def extract_panel_urls_from_page(page, config: Config) -> List[str]:
         "img[data-index]",
         ".viewer-img img",
         "#comic-viewer img",
+        "p img",  # newtoki469.com pattern: <p><img></p>
     ]
 
     for selector in selectors:
@@ -133,6 +134,7 @@ async def extract_panel_urls_selenium(driver, config: Config) -> List[str]:
         (By.CSS_SELECTOR, "div[class*='reader'] img"),
         (By.CSS_SELECTOR, "img[data-panel-id]"),
         (By.CSS_SELECTOR, "img[data-index]"),
+        (By.CSS_SELECTOR, "p img"),  # newtoki469.com pattern: <p><img></p>
     ]
 
     for by, selector in selectors:
