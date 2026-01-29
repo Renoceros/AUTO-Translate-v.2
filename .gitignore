@@ -65,3 +65,9 @@ tmp/
 
 # Local Manhwa Files
 /ManhwaDownloads/
+
+# Logs
+/logs/
+
+# Fonts
+/fonts/*

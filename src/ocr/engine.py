@@ -208,18 +208,42 @@ class OCREngine:
                     if hasattr(result, '__dict__'):
                         logger.debug(f"Result attributes: {list(result.__dict__.keys())}")
 
-                    # According to docs: dt_polys, rec_texts, rec_scores
+                    # Try to extract OCR data - handle both attribute and dict-like access
+                    dt_polys = None
+                    rec_texts = None
+                    rec_scores = None
+
+                    # Method 1: Try attribute access (object with properties)
                     if hasattr(result, 'dt_polys') and hasattr(result, 'rec_texts') and hasattr(result, 'rec_scores'):
-                        num_detections = len(result.dt_polys) if result.dt_polys else 0
+                        dt_polys = result.dt_polys
+                        rec_texts = result.rec_texts
+                        rec_scores = result.rec_scores
+                        logger.debug("Using attribute access for PaddleX result")
+                    # Method 2: Try dict-like access with get() method
+                    elif hasattr(result, 'get'):
+                        dt_polys = result.get('dt_polys')
+                        rec_texts = result.get('rec_texts')
+                        rec_scores = result.get('rec_scores')
+                        logger.debug("Using dict-like access for PaddleX result")
+                    # Method 3: Try direct dict access
+                    elif isinstance(result, dict):
+                        dt_polys = result.get('dt_polys')
+                        rec_texts = result.get('rec_texts')
+                        rec_scores = result.get('rec_scores')
+                        logger.debug("Using direct dict access for PaddleX result")
+
+                    # Process if we successfully extracted data
+                    if dt_polys is not None and rec_texts is not None and rec_scores is not None:
+                        num_detections = len(dt_polys) if dt_polys else 0
                         total_detections += num_detections
                         logger.debug(f"Result has {num_detections} text detections")
 
-                        if not result.dt_polys:
+                        if not dt_polys:
                             logger.debug("dt_polys is empty")
                             continue
 
                         # Iterate through detected text regions
-                        for idx, (bbox, text, score) in enumerate(zip(result.dt_polys, result.rec_texts, result.rec_scores)):
+                        for idx, (bbox, text, score) in enumerate(zip(dt_polys, rec_texts, rec_scores)):
                             # bbox is numpy array of shape (4, 2) with dtype int16
                             # Convert to list of [x, y] points
                             polygon = [[int(p[0]), int(p[1])] for p in bbox]
@@ -244,7 +268,7 @@ class OCREngine:
                             else:
                                 logger.debug(f"Text filtered out after cleaning: '{text_before}'")
                     else:
-                        logger.warning(f"Result missing required attributes. Has: {dir(result)}")
+                        logger.warning(f"Could not extract OCR data from result. Type: {type(result)}, Available: {dir(result)[:10]}...")
 
                 logger.info(f"PaddleX OCR: processed {results_processed} results, found {total_detections} detections, kept {len(boxes)} text boxes")
                 return boxes

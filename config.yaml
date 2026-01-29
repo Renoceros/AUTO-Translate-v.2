@@ -39,6 +39,11 @@ fonts:
   default: ./fonts/NanumGothic.ttf
   size_multiplier: 0.8
 
+inpaint:
+  method: telea  # "telea" (fast) or "ns" (Navier-Stokes, slower but sometimes better)
+  radius: 10  # Inpainting radius in pixels (how far to sample surrounding texture)
+  mask_dilation: 8  # Pixels to expand mask (ensures complete text removal including anti-aliasing)
+
 debug:
   save_artifacts: true
   debug_mode: false

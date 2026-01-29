@@ -65,10 +65,19 @@ async def inpaint_single_panel(
         return panel_path
 
     # Build mask
-    mask = build_mask_for_panel(image.shape, boxes_for_panel, dilation=5)
+    mask = build_mask_for_panel(
+        image.shape,
+        boxes_for_panel,
+        dilation=config.inpaint.mask_dilation
+    )
 
     # Inpaint
-    inpainted = inpaint_image(image, mask, method="telea", radius=7)
+    inpainted = inpaint_image(
+        image,
+        mask,
+        method=config.inpaint.method,
+        radius=config.inpaint.radius
+    )
 
     # Save
     cv2.imwrite(str(output_path), inpainted)
@@ -95,6 +104,11 @@ async def inpaint_panels(
         List of inpainted panel paths
     """
     logger.info(f"Inpainting {len(split_paths)} panels...")
+    logger.info(
+        f"Using method={config.inpaint.method}, "
+        f"radius={config.inpaint.radius}, "
+        f"mask_dilation={config.inpaint.mask_dilation}"
+    )
 
     output_dir = config.workspace_dir / "inpainted"
     output_dir.mkdir(exist_ok=True, parents=True)

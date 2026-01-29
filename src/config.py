@@ -64,6 +64,13 @@ class FontConfig(BaseModel):
     size_multiplier: float = 0.8
 
 
+class InpaintConfig(BaseModel):
+    """Inpainting configuration."""
+    method: str = "telea"  # "telea" or "ns" (Navier-Stokes)
+    radius: int = 10
+    mask_dilation: int = 8
+
+
 class DebugConfig(BaseModel):
     """Debug settings."""
     save_artifacts: bool = True
@@ -80,6 +87,7 @@ class Config(BaseModel):
     translation: TranslationConfig = Field(default_factory=TranslationConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     fonts: FontConfig = Field(default_factory=FontConfig)
+    inpaint: InpaintConfig = Field(default_factory=InpaintConfig)
     debug: DebugConfig = Field(default_factory=DebugConfig)
 
     # API keys
