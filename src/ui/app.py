@@ -2,6 +2,7 @@
 import asyncio
 import streamlit as st
 from pathlib import Path
+from datetime import datetime
 
 from src.config import Config, get_config
 from src.pipeline import Pipeline, PipelineStage
@@ -9,6 +10,7 @@ from src.ui.ui_input import render_input_section
 from src.ui.ui_progress import render_progress_section, update_progress_display
 from src.ui.ui_viewer import render_gallery, render_image_comparison
 from src.ui.ui_debug import render_debug_section
+from src.export import create_zip_package_in_memory
 
 
 def main():
@@ -136,14 +138,50 @@ def main():
                 # Gallery view
                 render_gallery(final_paths)
 
-                # Download button
+                # Download buttons
                 if len(final_paths) > 0:
-                    st.download_button(
-                        "Download First Page",
-                        data=open(final_paths[0], "rb").read(),
-                        file_name=final_paths[0].name,
-                        mime="image/png"
-                    )
+                    # ZIP download button (primary action)
+                    st.markdown("### Download Options")
+
+                    col1, col2 = st.columns([2, 1])
+
+                    with col1:
+                        # Create ZIP package
+                        try:
+                            with st.spinner("Preparing download package..."):
+                                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                zip_filename = f"translated_manhwa_{timestamp}.zip"
+
+                                zip_data = create_zip_package_in_memory(
+                                    final_paths,
+                                    title="Translated Manhwa"
+                                )
+
+                                st.download_button(
+                                    label="📦 Download Complete Chapter (ZIP)",
+                                    data=zip_data,
+                                    file_name=zip_filename,
+                                    mime="application/zip",
+                                    use_container_width=True,
+                                    type="primary"
+                                )
+
+                                st.caption(f"✓ Package contains {len(final_paths)} pages + HTML viewer")
+
+                        except Exception as e:
+                            st.error(f"Failed to create ZIP package: {str(e)}")
+
+                    with col2:
+                        # Single page download (legacy option)
+                        st.download_button(
+                            label="Download First Page",
+                            data=open(final_paths[0], "rb").read(),
+                            file_name=final_paths[0].name,
+                            mime="image/png",
+                            use_container_width=True
+                        )
+
+                st.divider()
 
                 # Comparison view
                 st.divider()
