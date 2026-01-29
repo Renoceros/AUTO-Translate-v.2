@@ -160,7 +160,7 @@ class Pipeline:
 
             # Stage 9: Inpaint
             self._notify_progress(PipelineStage.INPAINT, 85, "Inpainting original text...")
-            inpainted_paths = await self._inpaint_panels(split_paths, filtered_boxes)
+            inpainted_paths = await self._inpaint_panels(split_paths, ocr_boxes_pass2)
             self.state.artifacts["inpainted_paths"] = inpainted_paths
 
             # Stage 10: Render
@@ -244,10 +244,10 @@ class Pipeline:
         from src.agents.translation_agent import translate_text_boxes
         return await translate_text_boxes(filtered_boxes, self.config)
 
-    async def _inpaint_panels(self, split_paths: list[Path], filtered_boxes: list):
-        """Inpaint original text."""
+    async def _inpaint_panels(self, split_paths: list[Path], all_ocr_boxes: list):
+        """Inpaint original text from all OCR detections."""
         from src.inpaint.opencv_inpaint import inpaint_panels
-        return await inpaint_panels(split_paths, filtered_boxes, self.config)
+        return await inpaint_panels(split_paths, all_ocr_boxes, self.config)
 
     async def _render_text(self, inpainted_paths: list[Path], translated_boxes: list):
         """Render translated text."""

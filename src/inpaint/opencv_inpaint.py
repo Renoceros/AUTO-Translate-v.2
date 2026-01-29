@@ -89,21 +89,26 @@ async def inpaint_single_panel(
 
 async def inpaint_panels(
     split_paths: List[Path],
-    filtered_boxes: List[Dict[str, Any]],
+    all_ocr_boxes: List[Dict[str, Any]],
     config: Config
 ) -> List[Path]:
     """
-    Inpaint all split panels.
+    Inpaint all split panels using all OCR detections.
 
     Args:
         split_paths: List of split panel paths
-        filtered_boxes: Filtered OCR boxes
+        all_ocr_boxes: All OCR boxes (not just filtered ones)
         config: Configuration
 
     Returns:
         List of inpainted panel paths
+
+    Note:
+        Uses all OCR boxes to ensure ALL detected text is removed,
+        regardless of filter decisions. This prevents Korean text
+        from remaining visible in the final output.
     """
-    logger.info(f"Inpainting {len(split_paths)} panels...")
+    logger.info(f"Inpainting {len(split_paths)} panels with {len(all_ocr_boxes)} OCR detections...")
     logger.info(
         f"Using method={config.inpaint.method}, "
         f"radius={config.inpaint.radius}, "
@@ -115,7 +120,7 @@ async def inpaint_panels(
 
     # Group boxes by panel index
     boxes_by_panel = {}
-    for box in filtered_boxes:
+    for box in all_ocr_boxes:
         panel_idx = box.get('panel_index', 0)
         if panel_idx not in boxes_by_panel:
             boxes_by_panel[panel_idx] = []

@@ -37,7 +37,6 @@ Examples:
 - "가장 빠른 웹툰제공사이트
    웹툰왕국뉴토끼469
    NEWTOKI469.COM" → DROP (watermark)
-- "ㅋㅋㅋㅋ" → DROP (sfx)
 
 Input:
 {
@@ -60,26 +59,40 @@ FILTER_AGENT_PROMPT_BATCH = """You are a semantic text classifier for Korean man
 
 Your task: Classify multiple OCR-extracted text boxes as KEEP (essential dialogue/narration) or DROP (garbage).
 
+CRITICAL: BE EXTREMELY CONSERVATIVE! When in doubt, always mark as KEEP.
+Missing dialogue is FAR WORSE than keeping a few sound effects.
+
 Categories:
-- dialogue: Character speech, essential to story
-- narration: Story narration boxes
-- sfx: Sound effects (e.g., "쾅!", "터터터")
-- watermark: Site credits, copyright notices
-- noise: OCR errors, artifacts
+- dialogue: Character speech, essential to story → ALWAYS KEEP
+- narration: Story narration boxes → ALWAYS KEEP
+- sfx: Sound effects (e.g., "쾅!", "터터터") → DROP only if clearly SFX
+- watermark: Site credits, copyright notices → DROP
+- noise: OCR errors, artifacts → DROP
 
 Guidelines:
-- BE CONSERVATIVE: When in doubt, mark as KEEP
-- False negatives (missing dialogue) are worse than false positives (keeping SFX)
-- Consider context: short single syllables are often SFX
-- Watermarks usually appear at top/bottom edges
+- DEFAULT TO KEEP: If you're unsure, choose KEEP
+- Only DROP if you're 90%+ confident it's SFX/watermark/noise
+- Complete sentences or phrases → ALMOST ALWAYS KEEP
+- Short text (1-2 syllables) → Could be dialogue or SFX, prefer KEEP unless obvious SFX
+- Text at panel edges → Could be dialogue or watermark, prefer KEEP unless obvious watermark pattern
+- Anything that could possibly be dialogue → MUST KEEP
 
-Examples:
+Examples of KEEP (dialogue/narration):
 - "뭐야... 이게 대체 뭐야!" → KEEP (dialogue)
-- "쿠르릉" → DROP (sfx)
-- "© 2023 Manhwa Site" → DROP (watermark)
-- "다음 화에 계속!" → DROP (site UI)
-- "가장 빠른 웹툰제공사이트" → DROP (watermark)
-- "ㅋㅋㅋㅋ" → DROP (sfx)
+- "안녕" → KEEP (short but could be dialogue)
+- "그래" → KEEP (short but dialogue)
+- "..." → KEEP (ellipsis indicating pause)
+- "아!" → KEEP (exclamation)
+
+Examples of DROP (only when obvious):
+- "쿠르릉" → DROP (onomatopoeia sound effect)
+- "터터터" → DROP (gunfire sound effect)
+- "© 2023 Manhwa Site" → DROP (copyright watermark)
+- "웹툰왕국뉴토끼469" → DROP (site name watermark)
+- "NEWTOKI469.COM" → DROP (URL watermark)
+- "ㅋㅋㅋㅋ" → DROP (laughter sound effect)
+
+REMEMBER: Your job is to preserve dialogue, not to aggressively filter. When in doubt, KEEP IT!
 
 Input: Array of text boxes with IDs
 Output: JSON array with same IDs, one decision per box
@@ -97,8 +110,8 @@ Output format (JSON array only):
     "id": 1,
     "decision": "DROP",
     "category": "sfx",
-    "confidence": 0.85,
-    "reasoning": "Sound effect"
+    "confidence": 0.95,
+    "reasoning": "Clear sound effect"
   }
 ]
 """
