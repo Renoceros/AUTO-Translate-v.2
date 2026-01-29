@@ -20,6 +20,7 @@ End-to-end ML pipeline combining CV (OCR, inpainting) + NLP (translation) + web 
 - `config.py` - Pydantic configuration models
 - `pipeline.py:50-200` - Main Pipeline orchestrator (11 stages)
 - `crawler/` - Playwright/Selenium automation, captcha solving
+- `ingester/` - HTML file parsing and image extraction
 - `panels/` - Download, stitching with coordinate mapping
 - `ocr/` - Dual engines (PaddleOCR→EasyOCR), preprocessing
 - `split/smart_split.py:40-150` - Whitespace detection, safe cutting
@@ -36,6 +37,7 @@ End-to-end ML pipeline combining CV (OCR, inpainting) + NLP (translation) + web 
 ## Key Files
 - `src/config.py:60-120` - Config validation
 - `src/crawler/browser.py:80-150` - Browser drivers
+- `src/ingester/html_parser.py` - HTML parsing and image extraction
 - `src/ocr/engine.py:70-180` - OCR strategy pattern
 - `src/agents/filter_agent.py:30-180` - LLM classifier
 - `src/agents/translation_agent.py:30-170` - LLM translator
@@ -52,16 +54,21 @@ cp .env.example .env  # Add ANTHROPIC_API_KEY=your_key
 **Run**:
 ```bash
 streamlit run app.py  # UI (recommended)
-python cli.py "https://manhwa-url.com/chapter-1"  # CLI
+python cli.py "https://manhwa-url.com/chapter-1"  # CLI with URL
+python cli.py --html saved_chapter.html  # CLI with HTML file
 python test_installation.py  # Verify setup
 ```
 
 **Config**: `config.yaml` (OCR threshold, browser, LLM model, etc.) + `.env` (API key)
 
 ## Pipeline Flow
-1. Crawl → 2. Download → 3. Stitch → 4. OCR #1 (text detection) → 5. Smart split → 6. OCR #2 (extraction) → 7. Filter (KEEP/DROP) → 8. Translate → 9. Inpaint → 10. Render → 11. Compose
 
-**Runtime**: ~10 min/50-panel chapter
+**From URL**: 1. Crawl → 2. Download → 3. Stitch → ... → 11. Compose
+**From HTML**: 1-2. HTML Ingestion (extract images) → 3. Stitch → ... → 11. Compose
+
+Full pipeline: 1. Crawl/Ingest → 2. Download/Extract → 3. Stitch → 4. OCR #1 (text detection) → 5. Smart split → 6. OCR #2 (extraction) → 7. Filter (KEEP/DROP) → 8. Translate → 9. Inpaint → 10. Render → 11. Compose
+
+**Runtime**: ~10 min/50-panel chapter (URL mode), ~8 min (HTML mode, skips crawling)
 
 ## Common Operations
 

@@ -78,8 +78,14 @@ def main():
 
         # Run button
         if st.button("Start Translation", type="primary", disabled=st.session_state.pipeline_running):
-            if not user_inputs["url"]:
-                st.error("Please enter a chapter URL")
+            # Validate inputs (XOR: one and only one)
+            has_url = bool(user_inputs["url"])
+            has_html = user_inputs["html_file"] is not None
+
+            if not has_url and not has_html:
+                st.error("Please enter a URL or upload an HTML file")
+            elif has_url and has_html:
+                st.error("Please provide either a URL or HTML file, not both")
             else:
                 # Update config with user overrides
                 config.translation.target_language = user_inputs["target_lang"]
@@ -108,9 +114,12 @@ def main():
 
                     pipeline.set_progress_callback(update_progress)
 
-                    # Run pipeline
+                    # Run pipeline with appropriate input
                     try:
-                        result = pipeline.run(user_inputs["url"])
+                        if has_url:
+                            result = pipeline.run(url=user_inputs["url"])
+                        else:
+                            result = pipeline.run(html_path=user_inputs["html_file"])
 
                         if result["status"] == "success":
                             st.success("Translation complete!")

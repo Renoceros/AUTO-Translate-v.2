@@ -62,3 +62,6 @@ tmp/
 
 # Claude
 .claude/
+
+# Local Manhwa Files
+/ManhwaDownloads/

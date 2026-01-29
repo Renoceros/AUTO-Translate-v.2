@@ -7,6 +7,7 @@ A complete Python pipeline to crawl Korean manhwa chapters, OCR text, filter and
 ## Features
 
 - **Web Crawling**: Automated chapter crawling with Playwright/Selenium
+- **ZIP Upload**: Upload saved HTML+images as ZIP as an alternative to web crawling
 - **OCR**: Dual-engine (PaddleOCR + EasyOCR) with enhanced preprocessing
 - **Smart Splitting**: Intelligent panel splitting that avoids cutting through text
 - **LLM Filtering**: Claude AI-based garbage text detection (SFX, watermarks)
@@ -67,17 +68,28 @@ streamlit run app.py
 ```
 
 Then:
-1. Enter manhwa chapter URL
-2. Adjust settings if needed (OCR threshold, target language)
-3. Click "Start Translation"
-4. View results in the Results tab
+1. **Input Method A - Web URL**: Enter manhwa chapter URL in the text field
+2. **Input Method B - ZIP Upload**: Upload a ZIP containing saved manhwa HTML + images
+   - Save a manhwa page in your browser: File → Save Page As → "Web Page, Complete"
+   - This creates an HTML file and a folder with images
+   - ZIP them together (select both, right-click → "Compress" or "Send to → Compressed folder")
+   - Upload the ZIP file in the UI
+3. Adjust settings if needed (OCR threshold, target language)
+4. Click "Start Translation"
+5. View results in the Results tab
 
 ### Command Line Interface
 
-Run translation from command line:
+Run translation from command line using URL:
 
 ```bash
 python cli.py "https://example.com/manhwa/chapter-1"
+```
+
+Or using a saved ZIP file:
+
+```bash
+python cli.py --zip /path/to/manhwa_chapter.zip
 ```
 
 Options:

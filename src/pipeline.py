@@ -78,32 +78,51 @@ class Pipeline:
         if self.progress_callback:
             self.progress_callback(self.state)
 
-    async def run_async(self, url: str) -> Dict[str, Any]:
+    async def run_async(self, url: Optional[str] = None, html_path: Optional[Path] = None) -> Dict[str, Any]:
         """
         Run pipeline asynchronously.
 
         Args:
-            url: Manhwa chapter URL
+            url: Manhwa chapter URL (optional)
+            html_path: Path to HTML file (optional)
 
         Returns:
             Dictionary with pipeline results and artifacts
+
+        Raises:
+            ValueError: If neither or both inputs provided
         """
         try:
+            # Validate inputs (XOR: one and only one)
+            if url and html_path:
+                raise ValueError("Provide either URL or HTML file, not both")
+            if not url and not html_path:
+                raise ValueError("Must provide URL or HTML file")
+
             self._notify_progress(PipelineStage.INIT, 0, "Initializing pipeline...")
 
             # Ensure workspace exists
             self.config.ensure_workspace()
 
-            # Stage 1: Crawl
-            self._notify_progress(PipelineStage.CRAWL, 5, "Crawling chapter page...")
-            panel_urls = await self._crawl_chapter(url)
-            self.state.artifacts["panel_urls"] = panel_urls
-            self.logger.info(f"Found {len(panel_urls)} panels")
+            # Stage 1-2: Conditional execution (Crawl/Extract OR HTML Ingestion)
+            if url:
+                # Normal web crawling
+                self._notify_progress(PipelineStage.CRAWL, 5, "Crawling chapter page...")
+                panel_urls = await self._crawl_chapter(url)
+                self.state.artifacts["panel_urls"] = panel_urls
+                self.logger.info(f"Found {len(panel_urls)} panels")
 
-            # Stage 2: Extract panels
-            self._notify_progress(PipelineStage.EXTRACT, 15, "Downloading panels...")
-            panel_paths = await self._extract_panels(panel_urls)
-            self.state.artifacts["panel_paths"] = panel_paths
+                self._notify_progress(PipelineStage.EXTRACT, 15, "Downloading panels...")
+                panel_paths = await self._extract_panels(panel_urls)
+                self.state.artifacts["panel_paths"] = panel_paths
+            else:
+                # HTML ingestion
+                self._notify_progress(PipelineStage.EXTRACT, 10, "Extracting images from HTML...")
+                from src.ingester import parse_html_file
+                panel_paths = parse_html_file(html_path, self.config)
+                self.state.artifacts["panel_paths"] = panel_paths
+                self.state.artifacts["html_source"] = str(html_path)
+                self.logger.info(f"Extracted {len(panel_paths)} images from HTML")
 
             # Stage 3: Stitch panels
             self._notify_progress(PipelineStage.STITCH, 25, "Stitching panels...")
@@ -170,17 +189,18 @@ class Pipeline:
                 "artifacts": self.state.artifacts
             }
 
-    def run(self, url: str) -> Dict[str, Any]:
+    def run(self, url: Optional[str] = None, html_path: Optional[Path] = None) -> Dict[str, Any]:
         """
         Run pipeline synchronously.
 
         Args:
-            url: Manhwa chapter URL
+            url: Manhwa chapter URL (optional)
+            html_path: Path to HTML file (optional)
 
         Returns:
             Dictionary with pipeline results and artifacts
         """
-        return asyncio.run(self.run_async(url))
+        return asyncio.run(self.run_async(url=url, html_path=html_path))
 
     # Stage implementations (to be filled by module imports)
 
